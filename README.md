@@ -30,7 +30,7 @@ Two convenience scripts are provided for starting jupyter lab and dask.
 
 `start_worker.sh` uses the container to start dask workers, using the Slurm environment variables to determine the worker specs and memory. This is important to do otherwise dask starts workers that are based on the node specs rather than the job request. Run `sbatch start_worker.sh` a few times to get more workers or alter the slurm parameters
 
-### Connectin to Jupyter
+### Connecting to Jupyter
 
 Assuming you tunneled the port with a command like
 `ssh -N -l $USERNAME -L 8888:z106:8888 zeus.pawsey.org.au`
