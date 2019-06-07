@@ -1,0 +1,12 @@
+Bootstrap: docker
+From: pangeo/pangeo-notebook:latest
+
+%post
+    mkdir /run/user
+    mkdir /scratch
+    mkdir /group
+
+%labels
+    Author github.com/pbranson
+    Description based on the docker container curated here https://github.com/pangeo-data/pangeo-stacks
+
