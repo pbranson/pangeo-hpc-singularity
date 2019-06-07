@@ -2,6 +2,8 @@
 
 Scripts to run Dask and Jupyter lab on HPC (Pawsey SC Zeus) using SLURM and Singularity.
 
+**NOTE** I would recommend using Shifter if available, the process is quite a bit simpler, see https://github.com/pbranson/pangeo-hpc-shifter
+
 The container is based on the pangeo-notebook image that is curated at https://github.com/pangeo-data/pangeo-stacks. The image has been modified to add some directory paths to be used as bind points for the HPC filesystems. At Pawsey these are the SCRATCH and GROUP filesystems which are linked to the paths /scratch and /group in the container respectively. Because singularity uses an file system overlay approach this all works pretty neatly, including that $HOME folder in the container is mapped automatically to the users home and has the same path (i.e. /home/$USERNAME).
 
 The details of the modifications to the container are published [here](https://www.singularity-hub.org/containers/9672/view) ~~and the resulting container can be pulled from shub://pbranson/simages:pangeo-notebook~~ UPDATE: there is some weird bug in Singularity<3 (discussed [here](https://github.com/sylabs/singularity/issues/1301)) that prevents the container being built correctly on singularity hub (which as of 7/6/2019 is only on Singularity 2.5. So you will have to build the container somewhere you have root access and Singularity>3.
