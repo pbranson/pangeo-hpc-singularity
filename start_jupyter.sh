@@ -1,24 +1,29 @@
 #!/bin/bash -l
 
 #SBATCH --partition=workq
-##SBATCH --nodes=1
 #SBATCH --ntasks=2
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=5G
-#SBATCH --time=01:00:00
+#SBATCH --time=16:00:00
 #SBATCH --account=pawsey0106
-#SBATCH --export=ALL
+#SBATCH --export=NONE
 #SBATCH -J jupyter   # name
 #SBATCH -o jupyter-%J.out
 
 module load singularity
 
+mkdir $MYSCRATCH/tmp
+export TMPDIR=$MYSCRATCH/tmp
+export MY_CONTAINER=docker://pbranson/keras-pawsey:20190610
+export SINGULARITY_CACHEDIR=${MYGROUP}/singularity
+
+
 JNHOST=$(hostname)
 
-srun -n 1 -c 4 singularity exec --bind $HOME:/run/user \
+srun --export=ALL -n 1 -c $SLURM_CPUS_PER_TASK singularity exec --bind $HOME:/run/user \
        --bind $MYSCRATCH:/scratch \
        --bind $MYGROUP:/group \
-       pangeo-notebook.sif \
+       $MY_CONTAINER \
        dask-scheduler --scheduler-file $HOME/scheduler.json &
 
 # Create trap to kill notebook when user is done
@@ -45,10 +50,10 @@ LOGFILE=$MYSCRATCH/pangeo_jupyter_log.$(date +%Y%m%dT%H%M%S)
 echo "Logging jupyter notebook session on $JNHOST to $LOGFILE"
 
 
-srun -n 1 -c 4 singularity exec --bind $HOME:/run/user \
+srun --export=ALL -n 1 -c $SLURM_CPUS_PER_TASK singularity exec --bind $HOME:/run/user \
    --bind $MYSCRATCH:/scratch \
    --bind $MYGROUP:/group \
-   pangeo-notebook.sif \
+   $MY_CONTAINER  \
    jupyter lab --no-browser --ip=$JNHOST >& $LOGFILE &
 
 JNPID=$!
