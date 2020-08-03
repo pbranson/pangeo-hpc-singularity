@@ -1,49 +1,88 @@
-# pangeo-hpc-singularity
 
-Scripts to run Dask and Jupyter lab on HPC (Pawsey SC Zeus) using SLURM and Singularity.
+This repository provides some boiler plate scripts for running 'pangeo' python ecosystem using singularity containers.
 
-**NOTE** I would recommend using Shifter if available, the process is quite a bit simpler, see https://github.com/pbranson/pangeo-hpc-shifter
+Steps are:
 
-The container is based on the pangeo-notebook image that is curated at https://github.com/pangeo-data/pangeo-stacks. The image has been modified to add some directory paths to be used as bind points for the HPC filesystems. At Pawsey these are the SCRATCH and GROUP filesystems which are linked to the paths /scratch and /group in the container respectively. Because singularity uses an file system overlay approach this all works pretty neatly, including that $HOME folder in the container is mapped automatically to the users home and has the same path (i.e. /home/$USERNAME).
+1. Obtain docker image curated at https://github.com/pangeo-data/pangeo-stacks
+   ```
+   docker pull pangeo/pangeo-notebook
+   ```
+   The pangeo-notebook has a pretty diverse set of libraries for most cloud, 
+   dask, zarr, netCDF, analysis type tasks. 
 
-The details of the modifications to the container are published [here](https://www.singularity-hub.org/containers/9672/view) ~~and the resulting container can be pulled from shub://pbranson/simages:pangeo-notebook~~ UPDATE: there is some weird bug in Singularity<3 (discussed [here](https://github.com/sylabs/singularity/issues/1301)) that prevents the container being built correctly on singularity hub (which as of 7/6/2019 is only on Singularity 2.5. So you will have to build the container somewhere you have root access and Singularity>3.
+   - (Optional) Obtain docker image curated at https://github.com/pangeo-data/pangeo-stacks
+   If you need to customise, see minimal example in Dockerfile and requirements.txt and description here:
 
-We also need to bind some location to /run/user, not entirely clear to me why that is necessary, but jupyter/traitlets writes some files there and without sudo jupyter wont start correctly. Overlaying a writable folder there makes it work. Note that the jupyter TOKEN gets written to a file there so make sure it is a secure location.
+      - (Deprecated) https://github.com/pangeo-data/pangeo-stacks#customize-images-with-the--onbuild-variants
 
-## Building the container
-```
-sudo singularity build pangeo-notebook.sif Singularity.pangeo-notebook
-```
-## Running the containers
-Two convenience scripts are provided for starting jupyter lab and dask.
+       - (**Use this since 27-07-2020**) https://github.com/pangeo-data/pangeo-docker-images
 
-### Start Jupyter and Dask Scheduler
+         Then you would build a custom image along the lines of:
+         ```
+         make pangeo-notebook
+         ```
+  
+2. Convert docker image to singularity with a command such as:
+   ```
+   singularity -d build pangeo-custom.sif docker-daemon://pangeo/pangeo-notebook:master
+   ```
 
-`jobid=$(sbatch start_jupyter.sh | grep -o [0-9]*) && tail -F jupyter-$jobid.out`
+3. Copy the created ```pangeo-custom.sif``` singularity image to somewhere accessible on the HPC filesystem and edit the ```container=``` and ```scheduler_file=``` variables in the ```start_jupyter.slurm``` and ```start_worker.slurm``` scripts to point to the singularity image and the shared filesystem location to write the scheduler details, respectively.
 
-`start_jupyter.sh` does three things:
- 1. Starts an instance of the container running a dask-scheduler
- 2. Starts an instance of the container running jupyter lab
- 3. Parses the log files to print out a helpful string for tunneling to the port jupyter exposed on the compute node
 
-### Start Dask Workers
+4. Start the jupyter lab and dask-scheduler, the first parameter is the working path you want to use for jupyter lab:
+   ```
+   sbatch start_jupyter.slurm $HOME
+   ```
+   This starts a scheduler and jupyterlab with 2 cores each and 8GB/core memory. These can be edited in the #SBATCH headers, also note you can set the default directory for jupyterlab with the notebook_dir - at present it defaults to $SCRATCH1DIR. 
+   
+   
+5. Start dask-workers (where n is the number of workers you want - these are configures for < 2 hour wall time limit so that they use the `h2` queue):
+   ```
+   sbatch -n 10 start_worker.slurm
+   ```
+   also note that this input argument to dask-worker ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage.
+   
+   
+6. See instruction printed to the slurm-######.out log file for connecting to the jupyter session running on the compute node, something like:
+   ```
+   ssh -N -l pbranson -L 8888:compute-node123:8888 hpc-login.host.com
+   ``` 
+   and take note of the randomly generated token printed to the slurm-######.out log file. You will need that to login to Jupyterlab.
+   
+   
+7. To connect to the dask-scheduler from a notebook use the following snippet:
+   ```
+   import os
+   from distributed import Client
+   client=Client(scheduler_file=os.environ['SCRATCH1DIR'] + '/scheduler.json')
+   client
+   ```  
+   
+8. View the scheduler bokeh dashboard at http://localhost:8888/proxy/8787/status. This can also be entered into the Jupyterlab dask widget as `/proxy/8787/status`
 
-`jobid=$(sbatch start_worker.sh | grep -o [0-9]*) && tail -F dask-worker-$jobid.out`
+9. As a little cheat in jupyter lab I open up a terminal and then do 
+   ```
+   ssh localhost
+   ``` 
+   to connect to the host running the jupyter container - this gives you access to the jobscheduler from that terminal and you can start workers  in there with:
 
-`start_worker.sh` uses the container to start dask workers, using the Slurm environment variables to determine the worker specs and memory. This is important to do otherwise dask starts workers that are based on the node specs rather than the job request. Run `sbatch start_worker.sh` a few times to get more workers or alter the slurm parameters
+   ```
+   sbatch start_worker.slurm
+   ```
+   
+   Also note that the dask worker specifications used in the ```start_worker.slurm``` script are based of the slurm environment variables, so you can alter the worker specification using the ```#SBATCH``` directives:
+   
+   ```
+   #SBATCH --ntasks=20
+   #SBATCH --cpus-per-task=2
+   #SBATCH --mem-per-cpu=10G
+   #SBATCH --time=0:30:00
+   ```
 
-## Connecting to Jupyter
+   or at the command line when you submit the script:
 
-Assuming you tunneled the port with a command like
-`ssh -N -l $USERNAME -L 8888:z106:8888 zeus.pawsey.org.au`
-
-Open the browser to http://localhost:8888/
-
-Connect the dask scheduler with:
-```
-from dask.distributed import Client
-client=Client(address='localhost:8786')
-client
-```
-... and view the dask dashboard at http://localhost:8888/proxy/8787/status
-
+   ```
+   sbatch -n 4 -c 4 --mem-per-cpu=16G start_worker.slurm
+   ```
+   which would start 4 workers with 4 cores per worker and 16*4 = 64GB memory per dask-worker.
