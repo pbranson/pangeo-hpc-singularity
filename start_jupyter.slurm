@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --account=pawsey0106
 #SBATCH --ntasks=2
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=2
@@ -7,12 +8,12 @@
 
 module load singularity
 notebook_dir=$1
-container=$SCRATCH1DIR/pangeo-custom-20200724.sif
-scheduler_file=$SCRATCH1DIR/scheduler.json
+container=$MYSCRATCH/pangeo-custom-20201029.sif
+scheduler_file=$MYSCRATCH/scheduler.json
 JUPYTER_TOKEN=$(uuidgen)
 
 #Set these to have singularity bind data locations
-export SINGULARITY_BINDPATH=/apps:/apps,/datasets:/datasets,/scratch1:/scratch1,/flush3:/flush3,/OSM:/OSM,/run:/run,/flush_netapp:/flush_netapp,/datastore:/datastore
+export SINGULARITY_BINDPATH=/group:/group,/scratch:/scratch,/run:/run,$HOME:$HOME 
 
 #This is needed to setup conda in the container correctly
 export SINGULARITYENV_PREPEND_PATH=/srv/conda/envs/notebook/bin:/srv/conda/condabin:/srv/conda/bin
@@ -26,7 +27,7 @@ PORT=8888
 JNHOST=$(hostname)
 JNIP=$(hostname -i)
 
-LOGFILE=$SCRATCH1DIR/pangeo_jupyter_log.$(date +%Y%m%dT%H%M%S)
+LOGFILE=$MYSCRATCH/pangeo_jupyter_log.$(date +%Y%m%dT%H%M%S)
 
 echo "Logging jupyter notebook session on $JNHOST to $LOGFILE"
 
@@ -45,6 +46,6 @@ have set. SHARE TOKENS RARELY AND WISELY!
 To stop the server, press Ctrl-C.
 EOF
 
-srun --export=ALL -n 1 -N 1 -c $SLURM_CPUS_PER_TASK singularity exec  \
+srun --export=ALL -n 1 -N 1 -c $SLURM_CPUS_PER_TASK singularity exec \
     $container \
     jupyter lab --no-browser --ip=$JNHOST --notebook-dir=$notebook_dir --NotebookApp.token=$JUPYTER_TOKEN >& $LOGFILE 
