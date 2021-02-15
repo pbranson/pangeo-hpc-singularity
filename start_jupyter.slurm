@@ -8,7 +8,7 @@
 
 module load singularity
 notebook_dir=$1
-container=$MYSCRATCH/pangeo-custom-20201029.sif
+container=$MYSCRATCH/pangeo-custom-20210212.sif
 scheduler_file=$MYSCRATCH/scheduler.json
 JUPYTER_TOKEN=$(uuidgen)
 
@@ -35,8 +35,10 @@ echo -en "\nStarting jupyter notebook server, please wait a little (up to a few 
 
 cat << EOF
 Run the following command on your desktop or laptop:
-    ssh -N -l $USER -L ${LOCALHOST_PORT}:${JNHOST}:$PORT pearcey.hpc.csiro.au
+    ssh -N -l $USER -L ${LOCALHOST_PORT}:${JNHOST}:$PORT zeus.pawsey.org.au
+    
 Log in with your Username/Password or SSH keys.
+
 Then open a browser and go to http://localhost:${LOCALHOST_PORT}. The Jupyter web
 interface will ask you for a token. Use the following:
     $JUPYTER_TOKEN
