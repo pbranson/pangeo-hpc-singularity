@@ -24,24 +24,24 @@ Steps are:
   
 2. Convert docker image to singularity with a command such as:
    ```
-   singularity -d build pangeo-custom.sif docker-daemon://pangeo/pangeo-notebook:master
+   singularity -d build pangeo-latest.sif docker-daemon://pangeo/pangeo-notebook:master
    ```
 
-3. Copy the created ```pangeo-custom.sif``` singularity image to somewhere accessible on the HPC filesystem and edit the ```container=``` and ```scheduler_file=``` variables in the ```start_jupyter.slurm``` and ```start_worker.slurm``` scripts to point to the singularity image and the shared filesystem location to write the scheduler details, respectively.
+3. Copy the created ```pangeo-latest.sif``` singularity image to somewhere accessible on the HPC filesystem and edit the ```container=``` and ```scheduler_file=``` variables in the ```start_jupyter.slurm``` and ```start_worker.slurm``` scripts to point to the singularity image and the shared filesystem location to write the scheduler details, respectively.
 
 
 4. Start the jupyter lab and dask-scheduler, the first parameter is the working path you want to use for jupyter lab:
    ```
-   sbatch start_jupyter.slurm $HOME
+   sbatch start_jupyter.slurm $MYGROUP
    ```
-   This starts a scheduler and jupyterlab with 2 cores each and 8GB/core memory. These can be edited in the #SBATCH headers, also note you can set the default directory for jupyterlab with the notebook_dir - at present it defaults to $SCRATCH1DIR. 
+   This starts a scheduler and jupyterlab with 2 cores each and 8GB/core memory. These can be edited in the #SBATCH headers, also note you can set the default directory for jupyterlab with the notebook_dir which is the parameter passed to start_jupyter.slurm. 
    
    
 5. Start dask-workers (where n is the number of workers you want - these are configures for < 2 hour wall time limit so that they use the `h2` queue):
    ```
    sbatch -n 10 start_worker.slurm
    ```
-   also note that this input argument to dask-worker ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage.
+   also note that this input argument to dask-worker ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage. Currently this is disabled.
    
    
 6. See instruction printed to the slurm-######.out log file for connecting to the jupyter session running on the compute node, something like:
@@ -55,7 +55,7 @@ Steps are:
    ```
    import os
    from distributed import Client
-   client=Client(scheduler_file=os.environ['SCRATCH1DIR'] + '/scheduler.json')
+   client=Client(scheduler_file=os.environ['MYSCRATCH'] + '/scheduler.json')
    client
    ```  
    
@@ -65,7 +65,7 @@ Steps are:
    ```
    ssh localhost
    ``` 
-   to connect to the host running the jupyter container - this gives you access to the jobscheduler from that terminal and you can start workers  in there with:
+   to connect to the host running the jupyter container - this gives you access to the slurm job scheduler from that terminal and you can start workers  in there with:
 
    ```
    sbatch start_worker.slurm

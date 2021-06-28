@@ -1,14 +1,17 @@
 #!/bin/bash
 #SBATCH --account=pawsey0106
-#SBATCH --ntasks=2
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=8G
+#SBATCH --overcommit
+#SBATCH --cpus-per-task=2 
+#SBATCH --mem-per-cpu=4g 
+#SBATCH --ntasks=2
+#SBATCH --ntasks-per-node=2
 #SBATCH --time=10:00:00
+
 
 module load singularity
 notebook_dir=$1
-container=$MYSCRATCH/pangeo-custom-20210212.sif
+container=$MYSCRATCH/../pangeo-latest.sif
 scheduler_file=$MYSCRATCH/scheduler.json
 JUPYTER_TOKEN=$(uuidgen)
 
@@ -17,9 +20,10 @@ export SINGULARITY_BINDPATH=/group:/group,/scratch:/scratch,/run:/run,$HOME:$HOM
 
 #This is needed to setup conda in the container correctly
 export SINGULARITYENV_PREPEND_PATH=/srv/conda/envs/notebook/bin:/srv/conda/condabin:/srv/conda/bin
+export SINGULARITYENV_XDG_DATA_HOME=$MYGROUP/.local
 
 # Start the scheduler - saving scheduler info to $SCRATCH1DIR/scheduler.json
-srun --export=ALL -n 1 -N 1 -c $SLURM_CPUS_PER_TASK singularity exec $container dask-scheduler --scheduler-file $scheduler_file --idle-timeout 0 &
+srun -o scheduler-$SLURM_JOBID.out --export=ALL -n 1 -c $SLURM_CPUS_PER_TASK singularity exec $container dask-scheduler --scheduler-file $scheduler_file --idle-timeout 0 &
 
 LOCALHOST_PORT=8888
 PORT=8888
@@ -34,7 +38,7 @@ echo "Logging jupyter notebook session on $JNHOST to $LOGFILE"
 echo -en "\nStarting jupyter notebook server, please wait a little (up to a few minutes) to let it start. You can follow the file $LOGFILE to check using \n\n tail -F $LOGFILE"
 
 cat << EOF
-Run the following command on your desktop or laptop:
+\nRun the following command on your desktop or laptop:
     ssh -N -l $USER -L ${LOCALHOST_PORT}:${JNHOST}:$PORT zeus.pawsey.org.au
     
 Log in with your Username/Password or SSH keys.
@@ -48,6 +52,6 @@ have set. SHARE TOKENS RARELY AND WISELY!
 To stop the server, press Ctrl-C.
 EOF
 
-srun --export=ALL -n 1 -N 1 -c $SLURM_CPUS_PER_TASK singularity exec \
+srun -o jupyter-$SLURM_JOBID.out --export=ALL -n 1 -N 1 -c $SLURM_CPUS_PER_TASK singularity exec \
     $container \
-    jupyter lab --no-browser --ip=$JNHOST --notebook-dir=$notebook_dir --NotebookApp.token=$JUPYTER_TOKEN >& $LOGFILE 
+    jupyter lab --no-browser --ip=0.0.0.0 --notebook-dir=$notebook_dir --NotebookApp.token=$JUPYTER_TOKEN
