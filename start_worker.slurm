@@ -9,7 +9,7 @@
 
 module load singularity
 
-container=$MYSCRATCH/../pangeo-latest.sif
+container=$MYGROUP/../singularity/pangeo-latest.sif
 scheduler_file=$MYSCRATCH/scheduler.json
 
 #Set these to have singularity bind data locations
