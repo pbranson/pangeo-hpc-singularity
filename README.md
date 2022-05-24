@@ -9,26 +9,13 @@ Steps are:
    ```
    The pangeo-notebook has a pretty diverse set of libraries for most cloud, 
    dask, zarr, netCDF, analysis type tasks. 
-
-   - (Optional) Obtain docker image curated at https://github.com/pangeo-data/pangeo-stacks
-   If you need to customise, see minimal example in Dockerfile and requirements.txt and description here:
-
-      - (Deprecated) https://github.com/pangeo-data/pangeo-stacks#customize-images-with-the--onbuild-variants
-
-       - (**Use this since 27-07-2020**) https://github.com/pangeo-data/pangeo-docker-images
-
-         Then you would build a custom image along the lines of:
-         ```
-         make pangeo-notebook
-         ```
   
 2. Convert docker image to singularity with a command such as:
    ```
    singularity -d build pangeo-latest.sif docker-daemon://pangeo/pangeo-notebook:master
    ```
 
-3. Copy the created ```pangeo-latest.sif``` singularity image to somewhere accessible on the HPC filesystem and edit the ```container=``` and ```scheduler_file=``` variables in the ```start_jupyter.slurm``` and ```start_worker.slurm``` scripts to point to the singularity image and the shared filesystem location to write the scheduler details, respectively.
-
+3. Copy the created ```pangeo-latest.sif``` singularity image to somewhere accessible on the HPC filesystem.
 
 4. Start the jupyter lab, the first parameter is the singularity image file, the second is the working path you want to use for jupyter lab:
    ```
