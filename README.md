@@ -63,14 +63,14 @@ Steps are:
     
 10. You may wish to use dask, in which case open a terminal **inside** in jupyter, inside the browser and start a dask scheduler for your session with:
    ```
-   dask-scheduler --scheduler-file $MYSCRATCH/scheduler-$HOST.json --idle-timeout 0 &
+   dask-scheduler --scheduler-file $MYSCRATCH/scheduler-$HOSTNAME.json --idle-timeout 0
    ```
 
 11. You can then connect to the dask-scheduler from a notebook use the following snippet:
    ```
    import os
    from distributed import Client
-   client=Client(scheduler_file=os.environ['MYSCRATCH'] + '/scheduler-' + os.environ['HOST'] + '.json')
+   client=Client(scheduler_file=os.environ['MYSCRATCH'] + '/scheduler-' + os.environ['HOSTNAME'] + '.json')
    client
    ```  
    
@@ -78,22 +78,19 @@ Steps are:
 
 13. To start workers, in another terminal inside jupyter lab run the following:
    ```
-   ssh localhost
+   ssh localhost "cd $HOME/pangeo-hpc-singularity && sbatch start_worker.slurm $SINGULARITY_CONTAINER $MYSCRATCH/scheduler-$HOSTNAME.json"
    ``` 
-   to connect to the host running the jupyter container - this gives you access to the slurm job scheduler from that terminal and you can start workers in there using the script:
-   ```
-   sbatch start_worker.slurm $MYSCRATCH/scheduler-$HOST.json
-   ```
-   Note that the input argument to dask-worker (inside the start_worker.slurm script) ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage. Currently this is disabled. Also note that it has a default singularity image set - the singularity image needs to be the same as the one that is running jupyter.
+   to connect to the host running the jupyter container - this gives you access to the slurm job scheduler and you can submit a script to start workers. The path `$HOME/pangeo-hpc-singularity` will need to be adjusted to where you cloned this repository.
+   
    Finally the dask worker specifications used in the ```start_worker.slurm``` script are based of the slurm environment variables, so you can alter the worker specification using the ```#SBATCH``` directives:
    ```
-   #SBATCH --ntasks=20
+   #SBATCH --ntasks=4
    #SBATCH --cpus-per-task=2
-   #SBATCH --mem-per-cpu=10G
+   #SBATCH --mem-per-cpu=4G
    #SBATCH --time=0:30:00
    ```
    or at the command line when you submit the script:
    ```
-   sbatch -n 4 -c 4 --mem-per-cpu=16G start_worker.slurm
+    ssh localhost "cd $HOME/pangeo-hpc-singularity && sbatch -n 4 -c 4 --mem-per-cpu=16G start_worker.slurm $SINGULARITY_CONTAINER $MYSCRATCH/scheduler-$HOSTNAME.json"
    ```
-   which would start 4 workers with 4 cores per worker and 16*4 = 64GB memory per dask-worker. Once the worker slurm jobs start you should see them appear in the dashboard from step 12.
+   which would start 4 workers with 4 cores per worker and 16x4 = 64GB memory per dask-worker. Once the worker slurm jobs start you should see them appear in the dashboard from step 12.
