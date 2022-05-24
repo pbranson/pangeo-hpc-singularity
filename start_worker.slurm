@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=pawsey0106
-#SBATCH --ntasks=40
+#SBATCH --ntasks=4
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=1:00:00
@@ -9,8 +9,8 @@
 
 module load singularity
 
-container=$MYGROUP/../singularity/pangeo-latest.sif
-scheduler_file=$MYSCRATCH/scheduler.json
+container=$1
+scheduler_file=$2
 
 #Set these to have singularity bind data locations
 export SINGULARITY_BINDPATH=/group:/group,/scratch:/scratch,/run:/run,$HOME:$HOME
