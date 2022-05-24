@@ -30,11 +30,11 @@ Steps are:
 3. Copy the created ```pangeo-latest.sif``` singularity image to somewhere accessible on the HPC filesystem and edit the ```container=``` and ```scheduler_file=``` variables in the ```start_jupyter.slurm``` and ```start_worker.slurm``` scripts to point to the singularity image and the shared filesystem location to write the scheduler details, respectively.
 
 
-4. Start the jupyter lab and dask-scheduler, the first parameter is the singularity image file, the second is the working path you want to use for jupyter lab:
+4. Start the jupyter lab, the first parameter is the singularity image file, the second is the working path you want to use for jupyter lab:
    ```
    sbatch start_jupyter.slurm $MYGROUP/../singularity/pangeo-latest.sif $MYGROUP
    ```
-   This a jupyterlab with the specification set in the SBATCH directives at the top of the script. These can be edited in the #SBATCH headers, also note you can set the default directory for jupyterlab with the notebook_dir which is the parameter passed to start_jupyter.slurm. 
+   This starts a jupyterlab with the compute specifications set in the SBATCH directives at the top of the script. These can be edited in the #SBATCH headers, also note you can set the default directory for jupyterlab with the notebook_dir which is the parameter passed to start_jupyter.slurm. 
       
    
 5. Take a look at the output printed to the jupyter-#####.out log file. Once jupyter has started it should print a message like this:
@@ -55,7 +55,7 @@ Steps are:
 
 6. Open a second terminal on your local computer and start an ssh tunnel through to the jupyter lab running on the compute node using something like this command:
    ```
-   ssh -N -l your_username -L 8888:z127:8888 hpc-login.host.com
+   ssh -N -l your_username -L 8888:z127:8888 zeus.pawsey.org.au
    ``` 
    The important part is the the bit immediately following the "-L". The first 8888 is the port on your local computer that is tunnelled via the hpc-login.host.com to node z127 and the second 8888 is the port that jupyter lab is listening on. The second 8888 can change, and port used is what is printed in the the log file described at step 5. You likely will need to adjust this command each time you start a new jupyter lab.
 
@@ -63,18 +63,18 @@ Steps are:
     
 10. You may wish to use dask, in which case open a terminal **inside** in jupyter, inside the browser and start a dask scheduler for your session with:
    ```
-   dask-scheduler --scheduler-file $scheduler_file --idle-timeout 0 &
+   dask-scheduler --scheduler-file $MYSCRATCH/scheduler-$HOST.json --idle-timeout 0 &
    ```
 
 11. You can then connect to the dask-scheduler from a notebook use the following snippet:
    ```
    import os
    from distributed import Client
-   client=Client(scheduler_file=os.environ['MYSCRATCH'] + '/scheduler.json')
+   client=Client(scheduler_file=os.environ['MYSCRATCH'] + '/scheduler-' + os.environ['HOST'] + '.json')
    client
    ```  
    
-12. View the scheduler bokeh dashboard at http://localhost:8888/proxy/8787/status. This can also be entered into the Jupyterlab dask widget as `/proxy/8787/status`
+12. View the scheduler bokeh dashboard using the browser on your computer at http://localhost:8888/proxy/8787/status. This can also be entered into the Jupyterlab dask widget inside jupyterlab as `/proxy/8787/status`
 
 13. To start workers, in another terminal inside jupyter lab run the following:
    ```
@@ -82,9 +82,9 @@ Steps are:
    ``` 
    to connect to the host running the jupyter container - this gives you access to the slurm job scheduler from that terminal and you can start workers in there using the script:
    ```
-   sbatch start_worker.slurm
+   sbatch start_worker.slurm $MYSCRATCH/scheduler-$HOST.json
    ```
-   Note that this input argument to dask-worker (inside the start_worker.slurm script) ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage. Currently this is disabled. Also note that it has a default singularity image set - the singularity image needs to be the same as the one that is running jupyter.
+   Note that the input argument to dask-worker (inside the start_worker.slurm script) ```--local-directory $LOCALDIR``` tells the worker the path to local disk storage on the node which can be used for spilling data, but not all HPC nodes/centres have attached local storage. Currently this is disabled. Also note that it has a default singularity image set - the singularity image needs to be the same as the one that is running jupyter.
    Finally the dask worker specifications used in the ```start_worker.slurm``` script are based of the slurm environment variables, so you can alter the worker specification using the ```#SBATCH``` directives:
    ```
    #SBATCH --ntasks=20
